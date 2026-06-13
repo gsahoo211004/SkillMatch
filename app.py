@@ -1,14 +1,13 @@
 import streamlit as st
 import sys
 import os
-import tempfile
 
 sys.path.append(os.path.dirname(__file__))
 
 from src.nlp.pdf_reader import extract_text_from_bytes
 from src.nlp.extractor import extract_skills
 from src.matching.matcher import compute_match_score, get_skill_gaps
-from src.llm.feedback import generate_feedback
+from src.llm.feedback import generate_feedback, expand_job_role
 
 st.set_page_config(
     page_title="SkillMatch",
@@ -46,14 +45,7 @@ with col2:
             "Enter job role:",
             placeholder="e.g. Applied AI Intern, Data Scientist, ML Engineer"
         )
-        # Expand job role into a description for better matching
-        job_description = f"""
-        Job Role: {job_input}
-        Required skills for this role typically include:
-        Python, machine learning, deep learning, nlp, llm, genai,
-        data pipelines, sql, docker, rest api, statistics,
-        problem solving, communication, teamwork.
-        """ if job_input else ""
+        job_description = ""
     else:
         job_description = st.text_area(
             "Paste the full job description:",
@@ -67,8 +59,10 @@ st.divider()
 if st.button("🔍 Analyse Match", type="primary"):
     if not uploaded_pdf:
         st.error("Please upload your resume PDF.")
-    elif not job_input and not job_description:
-        st.error("Please enter a job role or paste a job description.")
+    elif input_type == "Job Role (quick)" and not job_input:
+        st.error("Please enter a job role.")
+    elif input_type == "Full Job Description (detailed)" and not job_description:
+        st.error("Please paste a job description.")
     else:
         # Stage 1: Extract resume text from PDF
         with st.spinner("Stage 1/4 — Reading your resume PDF..."):
@@ -78,12 +72,17 @@ if st.button("🔍 Analyse Match", type="primary"):
         if resume_text.startswith("Error"):
             st.error(resume_text)
         else:
-            # Show extracted text in expander
             with st.expander("View extracted resume text"):
                 st.text(resume_text[:1000] + "..." if len(resume_text) > 1000 else resume_text)
 
-            # Stage 2: Extract skills
+            # Stage 2: Expand job role if needed + extract skills
             with st.spinner("Stage 2/4 — Extracting skills..."):
+                if input_type == "Job Role (quick)" and job_input:
+                    with st.spinner(f"Expanding '{job_input}' into skill requirements using AI..."):
+                        job_description = expand_job_role(job_input)
+                    with st.expander("View expanded job description"):
+                        st.write(job_description)
+
                 jd_skills = extract_skills(job_description)["matched_skills"]
                 resume_skills = extract_skills(resume_text)["matched_skills"]
 

@@ -6,6 +6,27 @@ load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
+def expand_job_role(job_role: str) -> str:
+    """
+    Use Gemini to expand a job role title into a detailed skill requirements description.
+    """
+    prompt = f"""
+You are a technical recruiter. Generate a detailed job requirements description for the role: "{job_role}"
+
+List the specific technical skills, tools, programming languages, frameworks, and soft skills
+typically required for this role. Be specific and realistic.
+
+Format as a plain paragraph of requirements, not bullet points.
+Keep it under 150 words.
+"""
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        return response.text.strip()
+    except Exception as e:
+        return f"Python machine learning deep learning nlp sql docker rest api statistics communication"
 
 def generate_feedback(
     jd_text: str,
